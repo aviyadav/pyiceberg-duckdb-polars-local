@@ -282,3 +282,14 @@ Contributions are welcome! Please:
 ## Contact
 
 [Add your contact information here]
+
+
+
+[CMD]
+duckdb
+INSTALL iceberg;
+LOAD iceberg;
+
+SET unsafe_enable_version_guessing = true;
+
+SELECT * FROM iceberg_scan('iceberg_warehouse/default/my_iceberg_table', allow_moved_paths = true);

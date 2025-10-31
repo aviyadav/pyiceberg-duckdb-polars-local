@@ -13,7 +13,7 @@ def main():
     and reading data from it using DuckDB.
     """
     # Define paths and table name
-    warehouse_path = os.path.join(os.getcwd(), "iceberg_warehouse_001")
+    warehouse_path = os.path.join(os.getcwd(), "iceberg_warehouse")
     table_name = "default.my_iceberg_table"
     table_path = os.path.join(warehouse_path, table_name.replace(".", "/"))
 
@@ -45,11 +45,25 @@ def main():
     # Create a table
     table = catalog.create_table(table_name, schema)
 
-    # Create a Polars DataFrame
+    # Create a Polars DataFrame with 100 random values
+    import random
+    import string
+    
+    random.seed(42)  # For reproducibility
+
+    # Generate 100000 random IDs
+    random_ids = [random.randint(1, 1000000) for _ in range(100000)]
+
+    # Generate 100000 random names (random strings of 5-10 characters)
+    random_names = [
+        ''.join(random.choices(string.ascii_uppercase, k=random.randint(5, 10)))
+        for _ in range(100000)
+    ]
+    
     data = pl.DataFrame(
         {
-            "id": [1, 2, 3],
-            "name": ["Alice", "Bob", "Charlie"],
+            "id": random_ids,
+            "name": random_names,
         }
     ).with_columns(pl.col("id").cast(pl.Int32))
 
