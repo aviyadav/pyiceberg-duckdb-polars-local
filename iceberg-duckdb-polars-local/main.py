@@ -5,6 +5,7 @@ import uuid
 from datetime import date
 import numpy as np
 import pyarrow
+from pyiceberg.exceptions import NamespaceAlreadyExistsError, TableAlreadyExistsError
 
 warehouse_path = "./icehouse"
 catalog = SqlCatalog(
@@ -15,7 +16,10 @@ catalog = SqlCatalog(
     },
 )
 
-catalog.create_namespace("dummy_data")
+try:
+    catalog.create_namespace("dummy_data")
+except NamespaceAlreadyExistsError:
+    pass  # Namespace already exists, continue
 
 rows = 5000
 
@@ -37,8 +41,14 @@ polars_df = pl.DataFrame({
 }).to_arrow()
 
 
-table_ducks = catalog.create_table("dummy_data.duckdb_data", schema = duck_df.schema)
-table_polars = catalog.create_table("dummy_data.polars_data", schema = polars_df.schema)
+try:
+    table_ducks = catalog.create_table("dummy_data.duckdb_data", schema = duck_df.schema)
+except TableAlreadyExistsError:
+    table_ducks = catalog.load_table("dummy_data.duckdb_data")
+try:
+    table_polars = catalog.create_table("dummy_data.polars_data", schema = polars_df.schema)
+except TableAlreadyExistsError:
+    table_polars = catalog.load_table("dummy_data.polars_data")
 
 table_ducks.append(duck_df)
 table_polars.append(polars_df)
@@ -52,17 +62,20 @@ cn = table_ducks.scan().to_duckdb(table_name="duck_back")
 row_count_duck = cn.sql("select count(row_id) as tot_rows, sum(some_val) as agg_val from duck_back")
 print(f"Row count in duck db {row_count_duck}")
 
-# cn = duckdb.connect()
-# cn.execute("install iceberg; load iceberg; SET unsafe_enable_version_guessing = true;")
+cn = duckdb.connect()
+cn.execute("install iceberg; load iceberg; SET unsafe_enable_version_guessing = true;")
 
-# sql = """
-# select *
-# from iceberg_scan('./icehouse/dummy_data.db/duckdb_data')
-# """
-
-# data = cn.sql(sql)
-
-# print(f"DuckDB reading from iceberg {data}")
+# The following section using DuckDB's iceberg_scan is commented out.
+# As of now, DuckDB's iceberg_scan does not reliably support Iceberg tables written with PyIceberg due to metadata/manifest format/version differences.
+# Reading/writing with Polars or Arrow, or using PyIceberg, works fine. Re-enable this when compatibility improves.
+'''
+sql = """
+select *
+from iceberg_scan('./icehouse/dummy_data.db/duckdb_data')
+"""
+data = cn.sql(sql)
+print(f"DuckDB reading from iceberg {data}")
+'''
 
 
 # read back in polars
@@ -74,8 +87,3 @@ pol_data = df.select(
 )
 
 print(pol_data)
-
-
-
-
-
